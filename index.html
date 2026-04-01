@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>DDD Smart Trainer</title>
+<title>DDD Smart Trainer ELITE</title>
 
 <style>
 body{
@@ -12,26 +12,22 @@ body{
     color:white;
 }
 
-.header{
-    background:#111;
-    padding:15px;
-    text-align:center;
-    font-size:22px;
-}
+.page{ display:none; height:100vh; padding:30px; }
+.active{ display:block; }
 
-.container{
-    padding:20px;
-}
+h1{ text-align:center; }
 
 .card{
     background:#161616;
     padding:20px;
     border-radius:10px;
-    margin-bottom:15px;
+    max-width:650px;
+    margin:20px auto;
 }
 
 button{
     padding:10px 15px;
+    margin:5px;
     border:none;
     border-radius:6px;
     background:#7b2ff7;
@@ -39,11 +35,18 @@ button{
     cursor:pointer;
 }
 
+input{
+    padding:10px;
+    width:100%;
+    margin-top:10px;
+}
+
 .progress{
     height:10px;
     background:#333;
     border-radius:5px;
     overflow:hidden;
+    margin-top:10px;
 }
 
 .bar{
@@ -51,78 +54,232 @@ button{
     width:0%;
     background:#0d6efd;
 }
+
+img{
+    max-width:100%;
+    margin-top:10px;
+    border-radius:8px;
+}
 </style>
 </head>
 
 <body>
 
-<div class="header">📘 DDD Smart Trainer</div>
+<!-- AUDIO -->
+<audio id="correctSound" src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3"></audio>
+<audio id="wrongSound" src="https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-946.mp3"></audio>
 
-<div class="container">
+<!-- HOME -->
+<div class="page active" id="home">
+<h1>📘 DDD Smart Trainer ELITE</h1>
 
 <div class="card">
-<h3>Onboarding</h3>
-<p id="lesson">Click start to begin training</p>
-<button onclick="startTraining()">Start</button>
+<h3>Select Category</h3>
+<button onclick="start('2D')">2D</button>
+<button onclick="start('3D')">3D</button>
+<button onclick="start('Cuboid')">Cuboid</button>
+<button onclick="start('Polylane')">Polylanes</button>
+<button onclick="start('Calibration')">Calibration</button>
+</div>
 </div>
 
+<!-- QUIZ -->
+<div class="page" id="quiz">
+<h1 id="categoryTitle"></h1>
+
 <div class="card">
-<h3>Quiz</h3>
-<p id="question">No question loaded</p>
-<input id="answer" placeholder="Your answer">
+<p id="timer">⏱ Time: 0s</p>
+<p id="question"></p>
+<img id="qImage" style="display:none">
+
+<input id="answer" placeholder="Your answer...">
 <br><br>
-<button onclick="checkAnswer()">Submit</button>
+
+<button onclick="submitAnswer()">Submit</button>
+
+<div class="progress">
+<div class="bar" id="bar"></div>
 </div>
+
+<p id="status"></p>
+</div>
+</div>
+
+<!-- RESULT -->
+<div class="page" id="result">
+<h1>🏁 Results</h1>
 
 <div class="card">
-<h3>Progress</h3>
-<div class="progress"><div class="bar" id="bar"></div></div>
+<p id="finalScore"></p>
+<p id="speedScore"></p>
+<button onclick="goHome()">Back Home</button>
 </div>
-
 </div>
 
 <script>
-let lessons = [
-"Welcome to DDD platform",
-"Always label accurately",
-"Follow occlusion rules",
-"Review before submit"
-];
+let category="";
+let current=0;
+let score=0;
+let wrong=0;
+let total=20;
+let questions=[];
+let startTime=0;
+let timerInterval;
 
-let questions = [
-{q:"What is occlusion?", a:"blocking"},
-{q:"Should you guess labels?", a:"no"},
-{q:"Review before submit?", a:"yes"}
-];
+/* DYNAMIC QUESTION POOL */
+const pool = {
+"2D":[
+["What is a bounding box?","rectangle",""],
+["Should box be tight?","yes",""],
+["Is labeling empty space correct?","no",""]
+],
+"3D":[
+["What does LiDAR capture?","depth",""],
+["3D boxes represent?","object",""],
+["Align box to object?","yes",""]
+],
+"Cuboid":[
+["Cuboid used in?","3d",""],
+["Should cuboid fit object?","yes",""],
+["Rotation needed?","yes",""]
+],
+"Polylane":[
+["Polylines represent?","lanes",""],
+["Should be continuous?","yes",""],
+["Broken allowed?","no",""]
+],
+"Calibration":[
+["Calibration aligns?","camera",""],
+["Important for accuracy?","yes",""],
+["Wrong causes?","error",""]
+]
+};
 
-let step = 0;
-let score = 0;
+/* GENERATOR (NO REPEAT STYLE) */
+function generateQuestions(type){
+    let base = pool[type];
+    let output = [];
 
-function startTraining(){
-    document.getElementById("lesson").innerText = lessons[step];
+    for(let i=0;i<total;i++){
+        let item = base[Math.floor(Math.random()*base.length)];
+
+        output.push({
+            q:item[0],
+            a:item[1],
+            img:item[2] || null
+        });
+    }
+
+    return output;
 }
 
-function checkAnswer(){
+/* START */
+function start(type){
+    category=type;
+    questions=generateQuestions(type);
+    current=0;
+    score=0;
+    wrong=0;
+
+    startTime=Date.now();
+    startTimer();
+
+    document.getElementById("categoryTitle").innerText=type+" Training";
+
+    showPage("quiz");
+    loadQuestion();
+}
+
+/* TIMER */
+function startTimer(){
+    clearInterval(timerInterval);
+    timerInterval = setInterval(()=>{
+        let seconds = Math.floor((Date.now()-startTime)/1000);
+        document.getElementById("timer").innerText="⏱ Time: "+seconds+"s";
+    },1000);
+}
+
+/* LOAD */
+function loadQuestion(){
+    let q = questions[current];
+
+    document.getElementById("question").innerText =
+        (current+1)+"/20: "+q.q;
+
+    document.getElementById("answer").value="";
+    document.getElementById("status").innerText="";
+
+    if(q.img){
+        document.getElementById("qImage").src=q.img;
+        document.getElementById("qImage").style.display="block";
+    }else{
+        document.getElementById("qImage").style.display="none";
+    }
+
+    updateProgress();
+}
+
+/* SUBMIT */
+function submitAnswer(){
     let user = document.getElementById("answer").value.toLowerCase();
-    let correct = questions[step].a;
+    let correct = questions[current].a;
 
     if(user.includes(correct)){
         score++;
-        alert("Correct ✅");
+        document.getElementById("status").innerText="✅ Correct";
+        document.getElementById("correctSound").play();
     }else{
-        alert("Wrong ❌");
+        wrong++;
+        document.getElementById("status").innerText="❌ Wrong";
+        document.getElementById("wrongSound").play();
+
+        if(wrong>=3){
+            alert("❌ Failed! Restarting...");
+            goHome();
+            return;
+        }
     }
 
-    step++;
+    current++;
 
-    if(step < lessons.length){
-        document.getElementById("lesson").innerText = lessons[step];
-        document.getElementById("question").innerText = questions[step].q;
+    if(current<total){
+        loadQuestion();
     }else{
-        alert("Training Complete 🎉 Score: "+score);
+        finish();
     }
+}
 
-    document.getElementById("bar").style.width = (step/lessons.length*100)+"%";
+/* FINISH */
+function finish(){
+    clearInterval(timerInterval);
+
+    let totalTime = Math.floor((Date.now()-startTime)/1000);
+    let speed = Math.round((score/totalTime)*100);
+
+    document.getElementById("finalScore").innerText =
+        "Score: "+score+"/20";
+
+    document.getElementById("speedScore").innerText =
+        "⚡ Speed Score: "+speed;
+
+    showPage("result");
+}
+
+/* NAV */
+function showPage(id){
+    document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+}
+
+function goHome(){
+    clearInterval(timerInterval);
+    showPage("home");
+}
+
+/* PROGRESS */
+function updateProgress(){
+    let percent = (current/total)*100;
+    document.getElementById("bar").style.width=percent+"%";
 }
 </script>
 
