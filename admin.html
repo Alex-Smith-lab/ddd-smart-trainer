@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Admin Panel</title>
+
+<style>
+body{background:#0b0b0b;color:white;font-family:Arial;padding:20px;}
+.card{background:#161616;padding:15px;margin:10px;border-radius:8px;}
+button{padding:5px 10px;margin-top:5px;}
+</style>
+</head>
+
+<body>
+
+<h1>Admin Dashboard</h1>
+
+<h2>Pending Users</h2>
+<div id="users"></div>
+
+<h2>Results</h2>
+<div id="results"></div>
+
+<script>
+
+function load(){
+
+let users=JSON.parse(localStorage.getItem("users")||"[]");
+let html="";
+
+users.forEach((u,i)=>{
+if(!u.approved){
+html+=`<div class="card">${u.name}
+<br><button onclick="approve(${i})">Approve</button></div>`;
+}
+});
+
+document.getElementById("users").innerHTML=html;
+
+/* RESULTS */
+let res=JSON.parse(localStorage.getItem("results")||"[]");
+let rhtml="";
+
+res.forEach(r=>{
+rhtml+=`<div class="card">
+${r.name} | ${r.category} | Score: ${r.score} | Time: ${r.time}s
+</div>`;
+});
+
+document.getElementById("results").innerHTML=rhtml;
+
+}
+
+function approve(i){
+let users=JSON.parse(localStorage.getItem("users"));
+users[i].approved=true;
+localStorage.setItem("users",JSON.stringify(users));
+load();
+}
+
+load();
+
+</script>
+
+</body>
+</html>
