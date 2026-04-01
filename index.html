@@ -1,80 +1,111 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>DDD Smart Trainer ELITE</title>
+<title>DDD Training PRO</title>
 
 <style>
 body{
-    margin:0;
-    font-family:Arial;
-    background:#0b0b0b;
-    color:white;
+margin:0;
+font-family:Arial;
+background:#0b0b0b;
+color:white;
+overflow:hidden;
 }
 
-.page{ display:none; height:100vh; padding:30px; }
-.active{ display:block; }
+/* LANDING */
+#landing{
+position:absolute;
+width:100%;
+height:100vh;
+background:linear-gradient(#001f3f,#007bff);
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+animation:rise 1.5s ease;
+}
 
-h1{ text-align:center; }
-
-.card{
-    background:#161616;
-    padding:20px;
-    border-radius:10px;
-    max-width:650px;
-    margin:20px auto;
+@keyframes rise{
+from{transform:translateY(100%);}
+to{transform:translateY(0);}
 }
 
 button{
-    padding:10px 15px;
-    margin:5px;
-    border:none;
-    border-radius:6px;
-    background:#7b2ff7;
-    color:white;
-    cursor:pointer;
+padding:12px 20px;
+border:none;
+border-radius:6px;
+background:#fff;
+color:#007bff;
+cursor:pointer;
+margin-top:20px;
+}
+
+/* LOGIN */
+.page{
+display:none;
+padding:30px;
+}
+
+.active{
+display:block;
+}
+
+.card{
+background:#161616;
+padding:20px;
+border-radius:10px;
+max-width:600px;
+margin:auto;
 }
 
 input{
-    padding:10px;
-    width:100%;
-    margin-top:10px;
+width:100%;
+padding:10px;
+margin-top:10px;
 }
 
+/* QUIZ */
 .progress{
-    height:10px;
-    background:#333;
-    border-radius:5px;
-    overflow:hidden;
-    margin-top:10px;
+height:10px;
+background:#333;
+margin-top:10px;
 }
-
 .bar{
-    height:100%;
-    width:0%;
-    background:#0d6efd;
+height:100%;
+width:0%;
+background:#0d6efd;
 }
 
 img{
-    max-width:100%;
-    margin-top:10px;
-    border-radius:8px;
+max-width:100%;
+margin-top:10px;
 }
 </style>
 </head>
 
 <body>
 
-<!-- AUDIO -->
-<audio id="correctSound" src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3"></audio>
-<audio id="wrongSound" src="https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-946.mp3"></audio>
+<!-- LANDING -->
+<div id="landing">
+<h1>Welcome to DDD TRAINING SESSIONS</h1>
+<button onclick="showPage('login')">Proceed</button>
+</div>
 
-<!-- HOME -->
-<div class="page active" id="home">
-<h1>📘 DDD Smart Trainer ELITE</h1>
-
+<!-- LOGIN -->
+<div id="login" class="page">
 <div class="card">
-<h3>Select Category</h3>
+<h3>Request Access</h3>
+<input id="name" placeholder="Enter your name">
+<button onclick="requestAccess()">Request Access</button>
+<p id="status"></p>
+</div>
+</div>
+
+<!-- CATEGORY -->
+<div id="home" class="page">
+<div class="card">
+<h3>Select Training</h3>
 <button onclick="start('2D')">2D</button>
 <button onclick="start('3D')">3D</button>
 <button onclick="start('Cuboid')">Cuboid</button>
@@ -84,203 +115,192 @@ img{
 </div>
 
 <!-- QUIZ -->
-<div class="page" id="quiz">
-<h1 id="categoryTitle"></h1>
-
+<div id="quiz" class="page">
 <div class="card">
-<p id="timer">⏱ Time: 0s</p>
+<h3 id="title"></h3>
 <p id="question"></p>
-<img id="qImage" style="display:none">
+<img id="qimg" style="display:none">
+<input id="answer">
+<button onclick="submit()">Submit</button>
 
-<input id="answer" placeholder="Your answer...">
-<br><br>
-
-<button onclick="submitAnswer()">Submit</button>
-
-<div class="progress">
-<div class="bar" id="bar"></div>
-</div>
-
-<p id="status"></p>
+<p id="timer"></p>
+<div class="progress"><div class="bar" id="bar"></div></div>
+<p id="msg"></p>
 </div>
 </div>
 
 <!-- RESULT -->
-<div class="page" id="result">
-<h1>🏁 Results</h1>
-
+<div id="result" class="page">
 <div class="card">
-<p id="finalScore"></p>
-<p id="speedScore"></p>
-<button onclick="goHome()">Back Home</button>
+<h3 id="final"></h3>
+<button onclick="showPage('home')">Back</button>
 </div>
 </div>
+
+<audio id="correctSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+<audio id="wrongSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
 
 <script>
-let category="";
+
+/* STATE */
+let user="";
+let approved=false;
+let questions=[];
 let current=0;
 let score=0;
 let wrong=0;
-let total=20;
-let questions=[];
-let startTime=0;
-let timerInterval;
+let timer=0;
+let interval;
+let category="";
 
-/* DYNAMIC QUESTION POOL */
-const pool = {
-"2D":[
-["What is a bounding box?","rectangle",""],
-["Should box be tight?","yes",""],
-["Is labeling empty space correct?","no",""]
-],
-"3D":[
-["What does LiDAR capture?","depth",""],
-["3D boxes represent?","object",""],
-["Align box to object?","yes",""]
-],
-"Cuboid":[
-["Cuboid used in?","3d",""],
-["Should cuboid fit object?","yes",""],
-["Rotation needed?","yes",""]
-],
-"Polylane":[
-["Polylines represent?","lanes",""],
-["Should be continuous?","yes",""],
-["Broken allowed?","no",""]
-],
-"Calibration":[
-["Calibration aligns?","camera",""],
-["Important for accuracy?","yes",""],
-["Wrong causes?","error",""]
-]
-};
+/* PAGE NAV */
+function showPage(id){
+document.getElementById("landing").style.display="none";
+document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+}
 
-/* GENERATOR (NO REPEAT STYLE) */
-function generateQuestions(type){
-    let base = pool[type];
-    let output = [];
+/* ACCESS SYSTEM */
+function requestAccess(){
+user=document.getElementById("name").value;
 
-    for(let i=0;i<total;i++){
-        let item = base[Math.floor(Math.random()*base.length)];
+let users=JSON.parse(localStorage.getItem("users")||"[]");
 
-        output.push({
-            q:item[0],
-            a:item[1],
-            img:item[2] || null
-        });
-    }
+users.push({name:user,approved:false});
+localStorage.setItem("users",JSON.stringify(users));
 
-    return output;
+document.getElementById("status").innerText="Waiting for admin approval...";
+}
+
+/* CHECK APPROVAL */
+setInterval(()=>{
+let users=JSON.parse(localStorage.getItem("users")||"[]");
+let found=users.find(u=>u.name===user && u.approved);
+
+if(found){
+approved=true;
+showPage("home");
+}
+},2000);
+
+/* AI QUESTION GENERATOR */
+function generate(type){
+
+let base=[
+{q:"What is occlusion?",a:"blocking"},
+{q:"Should box be tight?",a:"yes"},
+{q:"Label empty?",a:"no"},
+{q:"3D uses?",a:"lidar"},
+{q:"Cuboid shape?",a:"3d"},
+{q:"Lane lines?",a:"road"},
+{q:"Calibration aligns?",a:"camera"}
+];
+
+let out=[];
+
+while(out.length<20){
+let r=base[Math.floor(Math.random()*base.length)];
+if(!out.includes(r)) out.push(r);
+}
+
+return out;
 }
 
 /* START */
 function start(type){
-    category=type;
-    questions=generateQuestions(type);
-    current=0;
-    score=0;
-    wrong=0;
+category=type;
+questions=generate(type);
+current=0;
+score=0;
+wrong=0;
+timer=0;
 
-    startTime=Date.now();
-    startTimer();
+showPage("quiz");
+next();
 
-    document.getElementById("categoryTitle").innerText=type+" Training";
-
-    showPage("quiz");
-    loadQuestion();
+interval=setInterval(()=>{
+timer++;
+document.getElementById("timer").innerText="Time: "+timer+"s";
+},1000);
 }
 
-/* TIMER */
-function startTimer(){
-    clearInterval(timerInterval);
-    timerInterval = setInterval(()=>{
-        let seconds = Math.floor((Date.now()-startTime)/1000);
-        document.getElementById("timer").innerText="⏱ Time: "+seconds+"s";
-    },1000);
+/* NEXT */
+function next(){
+let q=questions[current];
+document.getElementById("title").innerText=category+" "+(current+1)+"/20";
+document.getElementById("question").innerText=q.q;
+
+if(current%5==0){
+document.getElementById("qimg").src="https://via.placeholder.com/400x200";
+document.getElementById("qimg").style.display="block";
+}else{
+document.getElementById("qimg").style.display="none";
 }
 
-/* LOAD */
-function loadQuestion(){
-    let q = questions[current];
-
-    document.getElementById("question").innerText =
-        (current+1)+"/20: "+q.q;
-
-    document.getElementById("answer").value="";
-    document.getElementById("status").innerText="";
-
-    if(q.img){
-        document.getElementById("qImage").src=q.img;
-        document.getElementById("qImage").style.display="block";
-    }else{
-        document.getElementById("qImage").style.display="none";
-    }
-
-    updateProgress();
+updateBar();
 }
 
 /* SUBMIT */
-function submitAnswer(){
-    let user = document.getElementById("answer").value.toLowerCase();
-    let correct = questions[current].a;
+function submit(){
+let ans=document.getElementById("answer").value.toLowerCase();
+let correct=questions[current].a;
 
-    if(user.includes(correct)){
-        score++;
-        document.getElementById("status").innerText="✅ Correct";
-        document.getElementById("correctSound").play();
-    }else{
-        wrong++;
-        document.getElementById("status").innerText="❌ Wrong";
-        document.getElementById("wrongSound").play();
+if(ans.includes(correct)){
+score++;
+document.getElementById("correctSound").play();
+}else{
+wrong++;
+document.getElementById("wrongSound").play();
 
-        if(wrong>=3){
-            alert("❌ Failed! Restarting...");
-            goHome();
-            return;
-        }
-    }
+if(wrong>=3){
+alert("Failed! Restarting");
+location.reload();
+}
+}
 
-    current++;
+current++;
 
-    if(current<total){
-        loadQuestion();
-    }else{
-        finish();
-    }
+if(current<20){
+next();
+}else{
+finish();
+}
 }
 
 /* FINISH */
 function finish(){
-    clearInterval(timerInterval);
+clearInterval(interval);
 
-    let totalTime = Math.floor((Date.now()-startTime)/1000);
-    let speed = Math.round((score/totalTime)*100);
+let speedScore=Math.max(0,100-timer);
+let finalScore=score*5 + speedScore;
 
-    document.getElementById("finalScore").innerText =
-        "Score: "+score+"/20";
+document.getElementById("final").innerText=
+"Score: "+score+"/20 | Speed Bonus: "+speedScore+" | Total: "+finalScore;
 
-    document.getElementById("speedScore").innerText =
-        "⚡ Speed Score: "+speed;
+saveResult(finalScore);
 
-    showPage("result");
+showPage("result");
 }
 
-/* NAV */
-function showPage(id){
-    document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
-    document.getElementById(id).classList.add("active");
+/* SAVE */
+function saveResult(total){
+let data=JSON.parse(localStorage.getItem("results")||"[]");
+
+data.push({
+name:user,
+category:category,
+score:total,
+time:timer
+});
+
+localStorage.setItem("results",JSON.stringify(data));
 }
 
-function goHome(){
-    clearInterval(timerInterval);
-    showPage("home");
+/* BAR */
+function updateBar(){
+document.getElementById("bar").style.width=(current/20*100)+"%";
 }
 
-/* PROGRESS */
-function updateProgress(){
-    let percent = (current/total)*100;
-    document.getElementById("bar").style.width=percent+"%";
-}
 </script>
 
 </body>
