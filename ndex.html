@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LifeOS</title>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial;
+    background:#0b0b0b;
+    color:white;
+}
+
+.header{
+    text-align:center;
+    padding:15px;
+    background:#111;
+    font-size:22px;
+}
+
+.container{
+    padding:20px;
+}
+
+.card{
+    background:#161616;
+    padding:20px;
+    border-radius:10px;
+    margin-bottom:15px;
+}
+
+input{
+    padding:8px;
+    width:70%;
+}
+
+button{
+    padding:8px 12px;
+    background:#0d6efd;
+    border:none;
+    color:white;
+    border-radius:5px;
+}
+
+.list{
+    margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">🌍 LifeOS</div>
+
+<div class="container">
+
+<div class="card">
+<h3>Habit Tracker</h3>
+<input id="habitInput" placeholder="New habit">
+<button onclick="addHabit()">Add</button>
+<div class="list" id="habitList"></div>
+</div>
+
+<div class="card">
+<h3>Expense Tracker</h3>
+<input id="expenseInput" placeholder="Amount">
+<button onclick="addExpense()">Add</button>
+<div class="list" id="expenseList"></div>
+<p>Total: <span id="total">0</span></p>
+</div>
+
+</div>
+
+<script>
+let habits = [];
+let expenses = [];
+
+function addHabit(){
+    let val = document.getElementById("habitInput").value;
+    habits.push(val);
+    renderHabits();
+}
+
+function renderHabits(){
+    let html = "";
+    habits.forEach((h,i)=>{
+        html += `<div>✔ ${h}</div>`;
+    });
+    document.getElementById("habitList").innerHTML = html;
+}
+
+function addExpense(){
+    let val = Number(document.getElementById("expenseInput").value);
+    expenses.push(val);
+    renderExpenses();
+}
+
+function renderExpenses(){
+    let total = 0;
+    let html = "";
+
+    expenses.forEach(e=>{
+        total += e;
+        html += `<div>KES ${e}</div>`;
+    });
+
+    document.getElementById("expenseList").innerHTML = html;
+    document.getElementById("total").innerText = total;
+}
+</script>
+
+</body>
+</html>
